@@ -8,6 +8,7 @@ import { RECENT_TAIL_MESSAGES, snapshot } from "../src/context.ts";
 import { parseDotenvKey, resolveTypesafeApiKey } from "../src/env.ts";
 import {
   ENDPOINT,
+  endpointFromBaseUrl,
   FLOOR_MAX,
   FLOOR_MIN,
   floorFor,
@@ -309,6 +310,34 @@ test("two typed factors compose into one score; the floor slides with usage", ()
   assert.throws(() => parseJudgment(missingShape));
   assert.throws(() => parseJudgment({}));
   assert.throws(() => requestBody({ text: "x".repeat(MAX_REQUEST_BYTES) }));
+});
+
+test("TYPESAFE_BASE_URL routes judgments to a gateway; anything but an http(s) URL is ignored", async (t) => {
+  assert.equal(endpointFromBaseUrl(undefined), undefined);
+  assert.equal(endpointFromBaseUrl(""), undefined);
+  assert.equal(endpointFromBaseUrl("localhost:20228"), undefined);
+  assert.equal(endpointFromBaseUrl("file:///etc/passwd"), undefined);
+  assert.equal(
+    endpointFromBaseUrl("http://localhost:20228/"),
+    "http://localhost:20228/v1/systemone",
+  );
+  assert.equal(
+    endpointFromBaseUrl(" https://gw.example.com/jev "),
+    "https://gw.example.com/jev/v1/systemone",
+  );
+  const previous = process.env.TYPESAFE_BASE_URL;
+  t.after(() => {
+    if (previous === undefined) delete process.env.TYPESAFE_BASE_URL;
+    else process.env.TYPESAFE_BASE_URL = previous;
+  });
+  process.env.TYPESAFE_BASE_URL = "http://127.0.0.1:20228";
+  let url: unknown;
+  const transport = (async (input) => {
+    url = input;
+    return new Response(JSON.stringify(apiResponse()), { status: 200 });
+  }) as typeof fetch;
+  await judge({ phase: "done" }, "fake-test-key", new AbortController().signal, transport);
+  assert.equal(url, "http://127.0.0.1:20228/v1/systemone");
 });
 
 test("HTTP contract, output bound, status classification, and cancellation", async () => {

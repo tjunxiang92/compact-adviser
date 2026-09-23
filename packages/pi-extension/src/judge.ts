@@ -1,6 +1,16 @@
 import type { JudgeProfile } from "./profile.ts";
 
 export const ENDPOINT = "https://api.typesafe.ai/v1/systemone";
+/**
+ * `TYPESAFE_BASE_URL` as the TypeSafe SDK reads it (scheme and host, optional path prefix, no
+ * `/v1/systemone`), turned into a System One endpoint. Anything but an http(s) URL is ignored.
+ */
+export function endpointFromBaseUrl(value: string | undefined): string | undefined {
+  const base = value?.trim().replace(/\/+$/, "");
+  return base && /^https?:\/\/[^\s/?#]+(\/[^\s?#]*)?$/.test(base)
+    ? `${base}/v1/systemone`
+    : undefined;
+}
 export const MAX_REQUEST_BYTES = 32000;
 /**
  * Two atomic questions in one request, composed in code.
@@ -249,13 +259,16 @@ export async function judge(
 ): Promise<Judgment> {
   const timeout = AbortSignal.timeout(timeoutMs);
   try {
-    const response = await transport(ENDPOINT, {
-      method: "POST",
-      redirect: "error",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: requestBody(state, profile),
-      signal: AbortSignal.any([signal, timeout]),
-    });
+    const response = await transport(
+      endpointFromBaseUrl(process.env.TYPESAFE_BASE_URL) ?? ENDPOINT,
+      {
+        method: "POST",
+        redirect: "error",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        body: requestBody(state, profile),
+        signal: AbortSignal.any([signal, timeout]),
+      },
+    );
     if (!response.ok) {
       await response.body?.cancel();
       throw new JudgeError(

@@ -42,6 +42,7 @@ import {
   type TypesafeKeySource,
 } from "../lib/env.ts";
 import {
+  endpointFromBaseUrl,
   floorFor,
   JUDGE_DISABLED_NETWORK_MESSAGE,
   JUDGE_UNAVAILABLE_MESSAGE,
@@ -148,6 +149,14 @@ async function apiKey($: EngineInterface): Promise<string> {
 async function testEndpoint($: EngineInterface): Promise<string | undefined> {
   const value = await $.env.get("COMPACT_ADVISER_TEST_ENDPOINT");
   return value !== undefined && LOOPBACK_ENDPOINT.test(value) ? value : undefined;
+}
+
+/**
+ * The System One endpoint: the test fixture, else `TYPESAFE_BASE_URL` (the TypeSafe SDK's own
+ * override, for a self-hosted gateway in front of Jev), else TypeSafe itself.
+ */
+async function endpoint($: EngineInterface): Promise<string | undefined> {
+  return (await testEndpoint($)) ?? endpointFromBaseUrl(await $.env.get("TYPESAFE_BASE_URL"));
 }
 
 async function loadConfig($: EngineInterface): Promise<Config> {
@@ -282,7 +291,7 @@ async function judgeCheckpoint($: EngineInterface, epoch: number): Promise<void>
         // Request logging must not replace or delay the judgment.
       }
     }
-    const endpoint = await testEndpoint($);
+    const target = await endpoint($);
     let result: Awaited<ReturnType<typeof judge>>;
     try {
       result = await judge(
@@ -291,7 +300,7 @@ async function judgeCheckpoint($: EngineInterface, epoch: number): Promise<void>
         {
           fetch: (url, init) => $.http.fetch(url, init),
           sleep: (ms) => $.clock.sleep(ms),
-          ...(endpoint ? { endpoint } : {}),
+          ...(target ? { endpoint: target } : {}),
         },
         profile,
       );
