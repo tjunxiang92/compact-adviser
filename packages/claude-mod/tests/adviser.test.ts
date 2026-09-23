@@ -611,6 +611,20 @@ describe("turn-end gates", () => {
     await turnEnd($, w);
     expect(w.journal.requests[0]?.url).toBe("https://api.typesafe.ai/v1/systemone");
   });
+
+  test("TYPESAFE_BASE_URL sends judgments to that gateway", async ($, on) => {
+    const w = world(on, { baseUrl: "https://gateway.example/jev/" });
+    await $.session.start(interactiveStart);
+    await turnEnd($, w);
+    expect(w.journal.requests[0]?.url).toBe("https://gateway.example/jev/v1/systemone");
+  });
+
+  test("a TYPESAFE_BASE_URL that is not an http(s) URL is ignored", async ($, on) => {
+    const w = world(on, { baseUrl: "gateway.example" });
+    await $.session.start(interactiveStart);
+    await turnEnd($, w);
+    expect(w.journal.requests[0]?.url).toBe("https://api.typesafe.ai/v1/systemone");
+  });
 });
 
 describe("compaction cooldown", () => {

@@ -86,6 +86,7 @@ export type WorldOptions = {
   disable?: string;
   key?: string | undefined;
   endpoint?: string;
+  baseUrl?: string;
   consent?: { autoAcknowledged: boolean } | "absent" | unknown;
   mode?: string;
   minimum?: number;
@@ -133,6 +134,7 @@ export function world(on: On, options: WorldOptions = {}): World {
     ...(functionHooks === undefined ? {} : { CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: functionHooks }),
     ...(key === undefined ? {} : { TYPESAFE_API_KEY: key }),
     ...(options.endpoint === undefined ? {} : { COMPACT_ADVISER_TEST_ENDPOINT: options.endpoint }),
+    ...(options.baseUrl === undefined ? {} : { TYPESAFE_BASE_URL: options.baseUrl }),
     ...(options.disable === undefined ? {} : { COMPACT_ADVISER_DISABLE: options.disable }),
   });
   const consent = "consent" in options ? options.consent : "absent";
